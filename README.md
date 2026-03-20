@@ -1,21 +1,26 @@
 # Neural Resilient Pinning Control for Kuramoto Networks
 
 ---
-## 🌐 Overview
+### 🌐 Overview
 
-This repository implements a Neural Resilient Pinning Controller (NRPC) for synchronization in Kuramoto oscillator networks under structural and dynamical perturbations.
-The goal is to learn which nodes to control in order to achieve a better resilience–energy trade-off, compared to classical full-actuation and heuristic strategies.
+This repository implements a Neural Resilient Pinning Controller (NRPC) for resiliente synchronization in Kuramoto oscillator networks under structural and dynamical perturbations. The goal is to learn which nodes to control in order to achieve a better resilience–energy trade-off, compared to classical full-actuation and heuristic strategies.
+
 ---
-## ✨ Key Features
+### ✨ Key Features
 
-🎯 Learned node selection via neural networks
-⚡ Energy-efficient control (sparse actuation)
-🛡️ Resilience to structural disruptions
-📊 Full evaluation pipeline
-🔁 Reproducible experiments
+- 🎯 Learned node selection via neural networks
+
+- ⚡ Energy-efficient control (sparse actuation)
+
+- 🛡️ Resilience to structural disruptions
+
+- 📊 Full evaluation pipeline
+
+- 🔁 Reproducible experiments
+
 ---
-## 📁 Repository Structure
-
+### 📁 Repository Structure
+```
 NRPC-kuramoto/
 ├── kuramoto/
 ├── results/
@@ -28,8 +33,9 @@ NRPC-kuramoto/
 ├── dynamics_without_controller.py
 ├── requirements.txt
 └── README.md
+```
 ---
-## ⚙️ Installation
+### ⚙️ Installation
 
 ```bash
 python -m venv venv
@@ -37,7 +43,7 @@ source venv/bin/activate  # or venv\Scripts\activate on Windows
 python -m pip install -r requirements.txt
 ```
 ---
-## 🚀 Usage
+### 🚀 Usage
 
 Train:
 ```bash
@@ -55,12 +61,14 @@ python eval_hist_mask.py
 ```
 
 ---
-📊 Outputs
-`.pt` trained models
-`.pkl` evaluation results
-`.pdf` figures
+ 📊 Outputs
+ 
+- `.pt` trained models
+- `.pkl` evaluation results
+- `.pdf` figures
+  
 ---
-## 📈 Generate figures and statistics
+### 📈 Generate figures and statistics
 Generates heatmaps, Pareto fronts, and statistical summaries.
 ```
 python figures/pareto_eval.py
@@ -71,12 +79,13 @@ python stats/stats.py
 python stats/stats_fail.py
 ```
 ---
-## 🔁 Reproducibility
-All results can be reproduced using the provided scripts.
----
-## 📜 License
-See LICENSE file.
+### 🔁 Reproducibility
 
+All results can be reproduced using the provided scripts.
+
+---
+### 📜 License
+See LICENSE file.
 
 ### Note
 
