@@ -2,10 +2,12 @@
 
 ---
 ## 🌐 Overview
+
 This repository implements a Neural Resilient Pinning Controller (NRPC) for synchronization in Kuramoto oscillator networks under structural and dynamical perturbations.
 The goal is to learn which nodes to control in order to achieve a better resilience–energy trade-off, compared to classical full-actuation and heuristic strategies.
 ---
 ## ✨ Key Features
+
 🎯 Learned node selection via neural networks
 ⚡ Energy-efficient control (sparse actuation)
 🛡️ Resilience to structural disruptions
@@ -13,6 +15,7 @@ The goal is to learn which nodes to control in order to achieve a better resilie
 🔁 Reproducible experiments
 ---
 ## 📁 Repository Structure
+
 NRPC-kuramoto/
 ├── kuramoto/
 ├── results/
@@ -27,6 +30,7 @@ NRPC-kuramoto/
 └── README.md
 ---
 ## ⚙️ Installation
+
 ```bash
 python -m venv venv
 source venv/bin/activate  # or venv\Scripts\activate on Windows
@@ -34,6 +38,7 @@ python -m pip install -r requirements.txt
 ```
 ---
 ## 🚀 Usage
+
 Train:
 ```bash
 python train.py
