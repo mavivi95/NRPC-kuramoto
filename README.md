@@ -90,7 +90,6 @@ For a quick, non-definitive check of Experiment IV, the evaluation script provid
 
 Evaluation scripts expose settings including random seeds, perturbation settings, control gains and trial counts through command-line arguments. Saved configurations and outputs under `results/` should be considered the source of record for the numerical results. Running evaluations with default arguments may not reproduce all the exact output filenames found in this archive. Avoid overwriting definitive data during validation: use a separate `--tag` or `--outdir` where offered.
 
-The code is provided for research reproducibility. The principal dependencies and syntax checks passed on the research server, and one-trial execution checks completed for Experiments I–III and a smoke check for Experiment IV (19 October 2026). These smoke tests are not a clean-environment or full statistical replication; independent end-to-end reproduction remains to be verified.
 
 ## License
 
