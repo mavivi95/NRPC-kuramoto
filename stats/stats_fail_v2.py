@@ -4,7 +4,11 @@ import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 import pandas as pd
+import matplotlib as mpl
 from pathlib import Path
+
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['ps.fonttype'] = 42
 
 plt.rcParams['font.family'] = 'DeJavu Serif'
 plt.rcParams['font.serif'] = ['Times New Roman']
@@ -13,14 +17,14 @@ ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
 FIGURES = ROOT / "stats"
 
-file_path = RESULTS / "eval_data_fail.pkl"
+file_path = RESULTS / "eval_data_fail_v2_dt01.pkl"
 with open(file_path, 'rb') as f:
     data = pickle.load(f)
 
 p_values = []
-betas = [0.5, 1.0, 1.5, 2.0, 2.5]
+betas = [1.0, 2.0, 4.0, 5.0, 10.0, 100.0, 500.0]
 print("Wilcoxon signed-rank test results (NRPC vs Full Consensus):")
-print("50% nodes disconnected and 20% nodes bugged:")
+print("30% nodes perturbed:")
 print("\n")
 print("Results for resilience metric:")
 for beta in betas:
@@ -42,9 +46,7 @@ for b, p in zip(betas, pvals_corrected):
 print("#######")
 print("\n")
 print("Results for energy metric:")
-
 p_values = []
-
 for beta in betas:
 
     key_nrp = f'nrp_beta_{beta}'
@@ -107,7 +109,7 @@ width = 0.4
 # resilience_gain = (rho_controller - rho_full)*100
 resilience_gain_percent = [r*100 for r in resilience_gain_mean]
 
-plt.figure(figsize=(11,7))
+plt.figure(figsize=(15,7))
 
 bars1 = plt.bar(
     x - width/2,
@@ -143,24 +145,24 @@ for bars in [bars1, bars2]:
               f'{height:.1f}%',
               ha='center',
               va='bottom',
-              fontsize=13,
+              fontsize=16,
               fontweight='bold'
           )
         else:
           plt.text(
               bar.get_x() + bar.get_width()/2,
-              height - 4.5,
+              height - 5,
               f'{height:.1f}%',
               ha='center',
               va='bottom',
-              fontsize=13,
+              fontsize=16,
               fontweight='bold'
           )
 
 plt.xlabel(r'Parameter $\beta$', fontsize=20, fontweight='bold')
 plt.ylabel('Improvement vs Full Consensus (%)', fontsize=20, fontweight='bold')
-plt.xticks(x, betas, fontsize=18)
-plt.yticks(fontsize=18)
+plt.xticks(x, betas, fontsize=20)
+plt.yticks(fontsize=20)
 plt.axhline(0, color='black', linewidth=1)
 plt.ylim(-10, 105)
 plt.grid(axis='y', linestyle='--', alpha=0.3)
@@ -175,10 +177,10 @@ plt.text(
     transform=plt.gca().transAxes,
     ha='left',
     va='top',
-    fontsize=14,
+    fontsize=18,
     bbox=dict(boxstyle="round", facecolor="cyan", alpha=0.1)
 )
 plt.axvline(x=2.5, color='gray', linestyle='--', linewidth=1.5, alpha=0.5)
 plt.tight_layout()
-plt.savefig(FIGURES / 'energy_resilience_gain_fail.pdf', dpi=300, bbox_inches='tight')
+plt.savefig(FIGURES / 'energy_resilience_gain_v2_fail.pdf', dpi=300, bbox_inches='tight')
 plt.show()

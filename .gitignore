@@ -9,3 +9,23 @@ logs/
 venv/
 __pycache__/
 *.pyc
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Temporary files
+*.log
+.pytest_cache/
+.DS_Store
+Thumbs.db
+
+# Legacy evaluation outputs
+results/eval_data*.pkl
+
+# Experimental smoke tests
+results/**/smoke_validation/
+results/**/smoke_final*/
+results/**/*smoke_final*

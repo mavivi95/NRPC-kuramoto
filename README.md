@@ -1,102 +1,97 @@
 # Neural Resilient Pinning Control for Kuramoto Networks
 
----
-### 🌐 Overview
+Research code and numerical results for **sparse neural pinning control and resilient synchronization in Kuramoto oscillator networks**. The repository evaluates learned local (NRPC-L) and global–local (NRPC-GL) node selectors, comparing synchronization resilience and control effort against benchmark actuation strategies.
 
-This repository implements a Neural Resilient Pinning Controller (NRPC) for resiliente synchronization in Kuramoto oscillator networks under structural and dynamical perturbations. The goal is to learn which nodes to control in order to achieve a better resilience–energy trade-off, compared to classical full-actuation and heuristic strategies.
+## Contents
 
----
-### ✨ Key Features
+- `kuramoto/`: network dynamics, perturbations, controllers, and topology utilities.
+- `train.py`: training the local and global–local selectors.
+- `eval_experiment1.py`, `eval_experiment1_theory.py`: resilience–energy evaluation and directional recovery analysis.
+- `eval_experiment2.py`: multi-event perturbations.
+- `eval_experiment3.py`: structural disruptions and actuator selection.
+- `eval_experiment4_generate_topologies.py`, `eval_experiment4.py`: unseen-topology generation and zero-shot evaluation.
+- `plot_experiment*.py`: manuscript figure generation from saved results.
+- `results/`: saved evaluation data, topology bank, and trained checkpoints.
+- `figures/`: rendered figure outputs.
+- `stats/`: statistical analysis scripts.
 
-- 🎯 Learned node selection via neural networks
+## Environment
 
-- ⚡ Energy-efficient control (sparse actuation)
-
-- 🛡️ Resilience to structural disruptions
-
-- 📊 Full evaluation pipeline
-
-- 🔁 Reproducible experiments
-
----
-### 📁 Repository Structure
-```
-NRPC-kuramoto/
-├── kuramoto/
-├── results/
-├── figures/
-├── stats/
-├── train.py
-├── eval.py
-├── eval_fail.py
-├── eval_hist_mask.py
-├── dynamics_without_controller.py
-├── requirements.txt
-└── README.md
-```
----
-### ⚙️ Installation
+Run from the repository root. Python dependencies are listed in `requirements.txt` (saved as UTF-8).
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
+python -m venv .venv
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 ```
----
-### 🚀 Usage
 
-Train:
+The package versions originate from the research environment; check Python and platform compatibility before installing.
+
+## Models and evaluation
+
+Saved checkpoints:
+
+- `results/data_train_v4_modular_local.pt`
+- `results/data_train_v4_modular_global_local.pt`
+
+To train a model anew (computationally costly):
+
 ```bash
-python train.py
+python train.py --mode local --updates 800
+python train.py --mode global_local --updates 800
 ```
-Evaluate:
+
+The results and trained checkpoints bundled with this release avoid needing to retrain just to inspect the figures.
+
+### Experiment I — resilience–energy trade-off and theory
+
 ```bash
-python eval.py
-```
-Additional evaluation scenarios:
-
-``` 
-python eval_fail.py
-python eval_hist_mask.py
+python eval_experiment1.py --trials 100 --tag final
+python eval_experiment1_theory.py --trials 100 --tag theory
+python plot_experiment1_a.py
+python plot_experiment1_b.py
 ```
 
----
- 📊 Outputs
- 
-- `.pt` trained models
-- `.pkl` evaluation results
-- `.pdf` figures
-  
----
-### 📈 Generate figures and statistics
-Generates heatmaps, Pareto fronts, and statistical summaries.
+### Experiment II — multiple perturbation events
+
+```bash
+python eval_experiment2.py --trials 100 --tag final
+python plot_experiment2.py
 ```
-python figures/pareto_eval.py
-python figures/heatmap_ring.py
-python figures/heatmap_diagonal_a.py
-python figures/heatmap_diagonal_b.py
-python stats/stats.py
-python stats/stats_fail.py
+
+### Experiment III — structural disturbances
+
+```bash
+python eval_experiment3.py --trials 100 --tag final
+python plot_experiment3.py
 ```
----
-### 🔁 Reproducibility
 
-All results can be reproduced using the provided scripts.
+### Experiment IV — unseen topologies
 
----
-### 📜 License
-See LICENSE file.
+The release includes a saved topology bank at `results/experiment4/unseen_topology_bank.npz`. Use the same bank when evaluating to preserve the original unseen-topology sample.
 
-### Note
+```bash
+python eval_experiment4.py \
+  --bank results/experiment4/unseen_topology_bank.npz \
+  --outdir results/experiment4 --tag final
+python plot_experiment4_a.py
+python plot_experiment4_b.py
+```
 
-This repository provides the **additional and reproducible material** for the paper:
+To generate a **new** topology bank instead (this changes the benchmark graphs):
 
-**"Resilient Synchronization of Kuramoto Networks via Sparse Energy-Efficient Control"**,  
+```bash
+python eval_experiment4_generate_topologies.py --outdir results/experiment4/new_bank
+```
 
-by Manuela Chacon-Chamorro, María José Charria-Macías,  
-Luis Felipe Giraldo (Member, IEEE), and  
-Nicanor Quijano (Senior Member, IEEE),  
+For a quick, non-definitive check of Experiment IV, the evaluation script provides `--smoke`. This is **not** equivalent to reproducing its full reported results.
 
-submitted to the **IEEE Conference on Decision and Control (CDC), 2026**.
+## Reproducibility notes
 
----
+Evaluation scripts expose settings including random seeds, perturbation settings, control gains and trial counts through command-line arguments. Saved configurations and outputs under `results/` should be considered the source of record for the numerical results. Running evaluations with default arguments may not reproduce all the exact output filenames found in this archive. Avoid overwriting definitive data during validation: use a separate `--tag` or `--outdir` where offered.
+
+The code is provided for research reproducibility. The principal dependencies and syntax checks passed on the research server, and one-trial execution checks completed for Experiments I–III and a smoke check for Experiment IV (19 October 2026). These smoke tests are not a clean-environment or full statistical replication; independent end-to-end reproduction remains to be verified.
+
+## License
+
+See `LICENSE`.

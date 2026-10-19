@@ -1,0 +1,47 @@
+{
+  "experiment": "Experiment 1 - isolated disruptions",
+  "protocol_id": "EXP1_ISOLATED_V2_DT05_T100_K04",
+  "run_id": "final_seed71000_T100p0_dt0p5_K0p4_rec10p0",
+  "tag": "final",
+  "base_seed": 71000,
+  "n_trials": 100,
+  "betas": [
+    0.5,
+    1.0,
+    5.0,
+    10.0,
+    20.0
+  ],
+  "dt": 0.5,
+  "t_max": 100.0,
+  "steps": 200,
+  "k_coord": 0.4,
+  "network_degree": 4.0,
+  "k_select": 10,
+  "alpha": 10.0,
+  "u_clip": 2.0,
+  "scenarios": [
+    "drift",
+    "pulse",
+    "cancel"
+  ],
+  "recovery_window": 10.0,
+  "delta_max": 1.5707963267948966,
+  "c_delta": 0.6366197723675814,
+  "lambda2": 0.053941305726766586,
+  "gamma_network": 0.003434010177298426,
+  "spectral_operator": "H(t) = c_delta*(K/degree)*L + beta*g(t)*M(t)",
+  "gamma_definition": "lambda_min(Q^T H(t) Q)",
+  "primary_spectral_metric": "gamma_rec_mean",
+  "theory_beta": 5.0,
+  "theory_methods": [
+    "betweenness",
+    "nrpc_gl",
+    "nrpc_local",
+    "random"
+  ],
+  "lambda_rest_definition": "-(Vdot_fd - e^T P omega) / ||e||^2",
+  "theory_samples_location": "results.pkl['theory_samples']",
+  "gl_checkpoint": "results/data_train_v4_modular_global_local.pt",
+  "local_checkpoint": "results/data_train_v4_modular_local.pt"
+}
