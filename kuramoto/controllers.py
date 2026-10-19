@@ -1,4 +1,4 @@
-import torch
+﻿import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Dict
@@ -90,34 +90,39 @@ def make_beta_sweep(betas):
     return ctrls
 
 class MeanPhaseFeedbackController:
-    def __init__(self, beta: float, gating: bool = True, alpha: float = 10.0):
-        """
-        Wrapper class for the baseline mean-phase feedback controller.
+    """
+    Full mean-phase feedback controller.
 
-        Args:
-            beta: Consensus gain.
-            gating: Whether to use global gating.
-            alpha: Gating sharpness parameter.
-        """
+    Uses the same consensus law, synchronization gate, and optional
+    actuator saturation as the sparse controllers.
+    """
+
+    def __init__(
+        self,
+        beta: float,
+        gating: bool = True,
+        alpha: float = 10.0,
+        u_clip: Optional[float] = None,
+    ):
         self.beta = beta
         self.gating = gating
         self.alpha = alpha
+        self.u_clip = u_clip
 
-    def __call__(self, theta_measured: torch.Tensor) -> torch.Tensor:
-        """
-        Apply the baseline controller to the measured phase vector.
-
-        Args:
-            theta_measured: Tensor of shape (1, N) or (N,).
-
-        Returns:
-            Control tensor and auxiliary output from the baseline controller.
-        """
-        # theta_measured: (1, N) or (N,)
-        return baseline_mean_phase_feedback(
-            theta_measured, beta=self.beta, gating=self.gating, alpha=self.alpha
+    def __call__(self, theta_measured: torch.Tensor):
+        u, m = baseline_mean_phase_feedback(
+            theta_measured,
+            beta=self.beta,
+            gating=self.gating,
+            alpha=self.alpha,
         )
-    
+
+        if self.u_clip is not None:
+            u = torch.clamp(u, -self.u_clip, self.u_clip)
+
+        return u, m
+
+
 
 # =========================
 # Neural-Resilient Pinning Controller
@@ -489,7 +494,125 @@ def build_node_features(theta, adjacency):
 
     return feats
 
+def build_node_features_v3(theta, adjacency, mode="global_local"):
+    """
+    Rotation-invariant node features for NRPC-V3.
 
+    mode:
+        global_local : global synchronization + neighborhood information
+        local        : neighborhood information only
+
+    Returns:
+        [B, N, 8]
+    """
+
+    if theta.dim() == 1:
+        theta = theta.unsqueeze(0)
+
+    B, N = theta.shape
+    device = theta.device
+    dtype = theta.dtype
+
+    A = adjacency.to(device=device, dtype=dtype)
+
+    deg = A.sum(dim=1).clamp(min=1.0)       # [N]
+
+    sin_t = torch.sin(theta)
+    cos_t = torch.cos(theta)
+
+    # ======================================================
+    # 1. GLOBAL INFORMATION
+    # ======================================================
+
+    z_global = torch.mean(torch.exp(1j * theta), dim=1)
+
+    psi_global = torch.angle(z_global).view(B, 1)
+    r_global = torch.abs(z_global).view(B, 1)
+
+    global_sin_err = torch.sin(theta - psi_global)
+    global_cos_err = torch.cos(theta - psi_global)
+    global_r_nodes = r_global.expand(-1, N)
+
+    # ======================================================
+    # 2. FIRST LOCAL CIRCULAR MOMENT
+    #
+    # mean_j sin(theta_j - theta_i)
+    # mean_j cos(theta_j - theta_i)
+    # ======================================================
+
+    neigh_sin = (sin_t @ A.T) / deg.unsqueeze(0)
+    neigh_cos = (cos_t @ A.T) / deg.unsqueeze(0)
+
+    local_sin_1 = (
+        cos_t * neigh_sin
+        - sin_t * neigh_cos
+    )
+
+    local_cos_1 = (
+        cos_t * neigh_cos
+        + sin_t * neigh_sin
+    )
+
+    local_r = torch.sqrt(
+        local_sin_1**2
+        + local_cos_1**2
+        + 1e-8
+    )
+
+    # ======================================================
+    # 3. SECOND LOCAL CIRCULAR MOMENT
+    #
+    # Helps distinguish local configurations with similar
+    # first-order coherence but different phase dispersion.
+    # ======================================================
+
+    sin_2t = torch.sin(2.0 * theta)
+    cos_2t = torch.cos(2.0 * theta)
+
+    neigh_sin_2 = (sin_2t @ A.T) / deg.unsqueeze(0)
+    neigh_cos_2 = (cos_2t @ A.T) / deg.unsqueeze(0)
+
+    local_sin_2 = (
+        cos_2t * neigh_sin_2
+        - sin_2t * neigh_cos_2
+    )
+
+    local_cos_2 = (
+        cos_2t * neigh_cos_2
+        + sin_2t * neigh_sin_2
+    )
+
+    # ======================================================
+    # 4. INFORMATION REGIME
+    # ======================================================
+
+    if mode == "local":
+
+        global_sin_err = torch.zeros_like(global_sin_err)
+        global_cos_err = torch.zeros_like(global_cos_err)
+        global_r_nodes = torch.zeros_like(global_r_nodes)
+
+    elif mode != "global_local":
+
+        raise ValueError(
+            f"Unknown information mode: {mode}"
+        )
+
+    features = torch.stack(
+        [
+            global_sin_err,
+            global_cos_err,
+            global_r_nodes,
+            local_sin_1,
+            local_cos_1,
+            local_r,
+            local_sin_2,
+            local_cos_2,
+        ],
+        dim=-1
+    )
+
+    return features
 
 class NRPConsensusControllerTrainableNode:
     def __init__(
@@ -580,7 +703,7 @@ class NRPConsensusControllerTrainableNode:
             u = torch.clamp(u, -self.u_clip, self.u_clip)
 
         return (u.squeeze(0), m.squeeze(0)) if squeeze_back else (u, m)
-    
+
 
 class RNMaskControllerNode(nn.Module):
     def __init__(self, in_features: int, hidden_dim: int = 64):
@@ -622,3 +745,240 @@ class RNMaskControllerNode(nn.Module):
         raw_output = raw_output.reshape(B, N)  # Restore batch and node structure
 
         return raw_output * self.output_scale
+
+class PhaseErrorTopKController:
+    """
+    Dynamic sparse baseline.
+
+    At every control step, selects the k oscillators with the largest
+    instantaneous phase mismatch with respect to the global mean phase:
+
+        score_i = |sin(theta_i - psi)|
+
+    The selected nodes receive the same mean-phase feedback law used by
+    the other controllers.
+    """
+
+    def __init__(
+        self,
+        beta: float,
+        k_select: int,
+        gating: bool = True,
+        alpha: float = 10.0,
+        u_clip: Optional[float] = None,
+    ):
+        self.beta = beta
+        self.k_select = k_select
+        self.gating = gating
+        self.alpha = alpha
+        self.u_clip = u_clip
+
+    def __call__(self, theta_measured: torch.Tensor):
+
+        squeeze_back = False
+
+        if theta_measured.dim() == 1:
+            theta = theta_measured.view(1, -1)
+            squeeze_back = True
+        else:
+            theta = theta_measured
+
+        # Global Kuramoto order parameter
+        zbar = torch.mean(torch.exp(1j * theta), dim=1, keepdim=True)
+        r = torch.abs(zbar).real
+        psi = torch.angle(zbar)
+
+        # Same consensus feedback used by the other controllers
+        phase_error = theta - psi
+        u_cons = -self.beta * torch.sin(phase_error)
+
+        # Same global gating
+        if self.gating:
+            gate = torch.tanh(self.alpha * (1.0 - r))
+            u_cons = u_cons * gate
+
+        # Dynamic heuristic:
+        # nodes with the largest instantaneous correction demand
+        scores = torch.abs(torch.sin(phase_error))
+
+        k = max(1, min(self.k_select, theta.shape[1]))
+
+        topk_idx = torch.topk(scores, k=k, dim=1).indices
+
+        m = torch.zeros_like(theta)
+        m.scatter_(1, topk_idx, 1.0)
+
+        # Sparse control
+        u = m * u_cons
+
+        if self.u_clip is not None:
+            u = torch.clamp(u, -self.u_clip, self.u_clip)
+
+        if squeeze_back:
+            return u.squeeze(0), m.squeeze(0)
+
+        return u, m
+
+
+class NRPConsensusControllerTrainableNodeV3:
+
+    def __init__(
+        self,
+        neural_model,
+        adjacency,
+        beta,
+        mode="global_local",
+        gating=True,
+        alpha=10.0,
+        k_select=30,
+        tau=0.5,
+        u_clip=2.0,
+        soft_selection=True,
+    ):
+
+        self.model = neural_model
+        self.adjacency = adjacency
+        self.beta = beta
+        self.mode = mode
+        self.gating = gating
+        self.alpha = alpha
+        self.k_select = k_select
+        self.tau = tau
+        self.u_clip = u_clip
+        self.soft_selection = soft_selection
+
+    def __call__(self, theta_measured):
+
+        squeeze_back = False
+
+        if theta_measured.dim() == 1:
+            theta = theta_measured.view(1, -1)
+            squeeze_back = True
+        else:
+            theta = theta_measured
+
+        B, N = theta.shape
+
+        A = self.adjacency.to(
+            device=theta.device,
+            dtype=theta.dtype
+        )
+
+        # ==================================================
+        # REFERENCE USED BY THE CONTROL LAW
+        # ==================================================
+
+        # ==================================================
+        # GLOBAL REFERENCE FOR BOTH INFORMATION MODES
+        # ==================================================
+        #
+        # NRPC-GL and NRPC-L use the SAME consensus law.
+        #
+        # MODE affects only the information available to
+        # the learned node-scoring policy through
+        # build_node_features_v3(..., mode=self.mode).
+        #
+        # This allows a controlled comparison of:
+        #
+        #   global+local scoring  vs.  local-only scoring
+        #
+        # while keeping the physical feedback law identical.
+        # ==================================================
+
+        z_global = torch.mean(
+            torch.exp(1j * theta),
+            dim=1
+        )
+
+        psi_ref = torch.angle(
+            z_global
+        ).view(B, 1)
+
+        r_ref = torch.abs(
+            z_global
+        ).view(B, 1)
+
+        psi_ref = psi_ref.expand(-1, N)
+        r_ref = r_ref.expand(-1, N)
+
+        u_cons = -self.beta * torch.sin(
+            theta - psi_ref
+        )
+
+        if self.gating:
+
+            gate = torch.tanh(
+                self.alpha * (1.0 - r_ref)
+            )
+
+            u_cons = u_cons * gate
+
+        # ==================================================
+        # LEARNED NODE SCORING
+        # ==================================================
+
+        features = build_node_features_v3(
+            theta,
+            A,
+            mode=self.mode
+        )
+
+        z = self.model(features)
+
+        k = min(
+            self.k_select,
+            N
+        )
+
+        # ==================================================
+        # SOFT TRAINING / HARD TESTING
+        # ==================================================
+
+        if self.soft_selection:
+
+            probs = torch.softmax(
+                z / self.tau,
+                dim=1
+            )
+
+            m = probs * k
+
+            m = torch.clamp(
+                m,
+                0.0,
+                1.0
+            )
+
+        else:
+
+            m = torch.zeros_like(z)
+
+            idx = torch.topk(
+                z,
+                k=k,
+                dim=1
+            ).indices
+
+            m.scatter_(
+                1,
+                idx,
+                1.0
+            )
+
+        # ==================================================
+        # CONTROL
+        # ==================================================
+
+        u = m * u_cons
+
+        if self.u_clip is not None:
+            u = torch.clamp(
+                u,
+                -self.u_clip,
+                self.u_clip
+            )
+
+        if squeeze_back:
+            return u.squeeze(0), m.squeeze(0)
+
+        return u, m
